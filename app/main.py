@@ -1,18 +1,46 @@
+# app/main.py
 from fastapi import FastAPI
+import logging
 
-app = FastAPI(title="My Private Docker Registry Service")
+from app.api.v2 import endpoints as v2_endpoints
+from app.api.management import users as users_management_endpoints # 사용자 관리 라우터 임포트
+from app.core.config import settings
 
-@app.get("/")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
+app = FastAPI(
+    title="My Private Docker Registry Service",
+    version="0.1.0"
+)
+
+# /v2 경로에 대한 라우터 포함
+app.include_router(v2_endpoints.router, prefix="/v2", tags=["v2 Registry Proxy"])
+
+# /users 경로에 대한 사용자 관리 라우터 포함
+app.include_router(
+    users_management_endpoints.router, 
+    prefix="/users", 
+    tags=["User Management"]
+)
+
+
+@app.get("/", tags=["Root"])
 async def read_root():
+    logger.info("Root path '/' accessed.")
     return {"message": "Welcome to My Private Docker Registry Service!"}
 
-# Phase 1 목표 중 하나: Docker 클라이언트가 가장 먼저 호출하는 /v2/ 엔드포인트
-# 우선은 간단히 응답만 하도록 만들어봅니다.
-# 실제 Distribution Registry의 /v2/는 인증을 요구할 수 있고, 헤더를 통해 API 버전 지원 여부를 알립니다.
-@app.get("/v2/")
-async def check_v2_support():
-    # 실제 Distribution Registry는 Docker-Distribution-API-Version 헤더를 포함하여 응답합니다.
-    # response.headers["Docker-Distribution-API-Version"] = "registry/2.0"
-    # 여기서는 우선 간단한 JSON 응답만 반환합니다.
-    # 추후 실제 Distribution Registry의 /v2/로 요청을 프록시하도록 수정해야 합니다.
-    return {}
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Application startup...")
+    logger.info(f"Proxying to Distribution Registry at: {settings.DISTRIBUTION_REGISTRY_URL}")
+    if not settings.HTPASSWD_FILE.exists():
+        logger.warning(f"HTPASSWD_FILE not found at {settings.HTPASSWD_FILE}. User authentication will fail.")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("Application shutdown...")
