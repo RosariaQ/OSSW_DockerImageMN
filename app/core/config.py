@@ -9,11 +9,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 class Settings(BaseSettings):
     DISTRIBUTION_REGISTRY_URL: str = "http://127.0.0.1:5000"
     API_TIMEOUT_SECONDS: int = 300
-    # Update this line:
-    HTPASSWD_FILE: Path = Path("/home/rosaria01/secret/.htpasswd")
+    HTPASSWD_FILE: Path = Path("/home/rosaria01/secret/.htpasswd") # 이전 단계에서 변경된 경로
+
+    # SQLite 데이터베이스 URL 추가 (프로젝트 루트에 audit.db 파일로 생성)
+    AUDIT_DATABASE_URL: str = f"sqlite:///{BASE_DIR}/audit.db"
 
     class Config:
-        env_file = ".env" # If you use a .env file, you could also set HTPASSWD_FILE there
+        env_file = ".env"
         env_file_encoding = 'utf-8'
 
 @lru_cache()
